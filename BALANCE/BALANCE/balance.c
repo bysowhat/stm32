@@ -259,7 +259,7 @@ float Incremental_PI_Move (float Encoder,float Target)
 	 Bias=Target-Encoder; //Calculate the deviation //计算偏差
 	 Pwm+=KP*(Bias-Last_bias)+KI*Bias; 
 	 if(Pwm>50)Pwm=20;
-	 if(Pwm<-50)Pwm=-20;
+	 if(Pwm<-50)Pwm=-20;//debug_flag
 	 Last_bias=Bias; //Save the last deviation //保存上一次偏差 
 	 return Pwm; 
 }
