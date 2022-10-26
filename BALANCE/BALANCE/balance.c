@@ -109,7 +109,7 @@ int EXTI15_10_IRQHandler(void)
 			MOTOR_A.Control_metre = CAR_target_x * 1000 - CAR_target_z * Wheel_spacing*1000 / 2.0f; 
 			MOTOR_B.Control_metre = CAR_target_x *1000 + CAR_target_z * Wheel_spacing*1000 / 2.0f; 
 			
-			//convert mm/s to rps
+			//convert mm/s to 0.1rps
 			//把目标速度转换为目标转速
 			Get_Target_Encoder_Form_Velocity();
 			
@@ -124,8 +124,8 @@ int EXTI15_10_IRQHandler(void)
 			
 		
 			//速度限幅
-			MOTOR_A.Motor_Pwm = Limit_data(MOTOR_A.Motor_Pwm, rpm_max);
-			MOTOR_B.Motor_Pwm = Limit_data(MOTOR_B.Motor_Pwm, rpm_max);
+			MOTOR_A.Motor_Pwm = Limit_data(MOTOR_A.Motor_Pwm, rpm_max*10);
+			MOTOR_B.Motor_Pwm = Limit_data(MOTOR_B.Motor_Pwm, rpm_max*10);
 			
 			//控制电机
 			//hub_CAN_Syn_Rpm 
@@ -264,8 +264,8 @@ float Incremental_PI_Move (float Encoder,float Target)
 	 static float Bias,Pwm,Last_bias;
 	 Bias=Target-Encoder; //Calculate the deviation //计算偏差
 	 Pwm+=KP*(Bias-Last_bias)+KI*Bias; 
-	 if(Pwm>50)Pwm=20;
-	 if(Pwm<-50)Pwm=-20;//debug_flag
+	 //if(Pwm>50)Pwm=20;
+	 //if(Pwm<-50)Pwm=-20;//debug_flag
 	 Last_bias=Bias; //Save the last deviation //保存上一次偏差 
 	 return Pwm; 
 }

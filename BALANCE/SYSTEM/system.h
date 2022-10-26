@@ -54,10 +54,10 @@
 typedef struct  
 {
 	float Encoder_metre; //Encoder value, motor real-time speed, unit: mm //编码器数值，电机实时速度，单位：mm/s
-	float Encoder_Rpm;   //Encoder value, motor real-time speed, unit: rpm //编码器数值，电机实时转速，单位：0.1rpm
-	float Control_Rpm;   //Control the target speed of the brushless motor, unit: rpm //控制无刷电机的目标转速，单位：0.1rpm
+	float Encoder_Rpm;   //Encoder value, motor real-time speed, unit: 0.1rpm //编码器数值，电机实时转速，单位：0.1rpm
+	float Control_Rpm;   //Control the target speed of the brushless motor, unit: 0.1rpm //控制无刷电机的目标转速，单位：0.1rpm
 	float Control_metre;   //Control the target speed of the brushless motor, unit: mm/s //控制无刷电机的目标速度，单位：mm/s
-	float Motor_Pwm; //the pid value for control  speed of the brushless motor, unit: rpm//pid输出的值，代表转速，单位：0.1rpm
+	float Motor_Pwm; //the pid value for control  speed of the brushless motor, unit: 0.1rpm//pid输出的值，代表转速，单位：0.1rpm
 }Motor_parameter;
 
 //Smoothed the speed of the three axes
