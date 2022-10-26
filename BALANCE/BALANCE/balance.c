@@ -66,12 +66,12 @@ int EXTI15_10_IRQHandler(void)
 		/*核心运动控制*/
 		Read_DMP();	 //读取倾角、角速度数据
 		
-		if(Pitch>39 || Pitch<-39 || 
-			 MOTOR_A.Encoder_Rpm>rpm_max*12 || MOTOR_A.Encoder_Rpm<-rpm_max*12 ||
-		   MOTOR_B.Encoder_Rpm>rpm_max*12 || MOTOR_B.Encoder_Rpm<-rpm_max*12)
-		{
-		  Flag_Stop=1;
-		}
+		//if(Pitch>39 || Pitch<-39 || 
+		//	 MOTOR_A.Encoder_Rpm>rpm_max*12 || MOTOR_A.Encoder_Rpm<-rpm_max*12 ||
+		 //  MOTOR_B.Encoder_Rpm>rpm_max*12 || MOTOR_B.Encoder_Rpm<-rpm_max*12)
+		//{
+		// Flag_Stop=1;
+		//}
 
 		//If there is no abnormity in the battery voltage, and the enable switch is in the ON position,
 		//and the software failure flag is 0, or the model detection marker is 0
@@ -80,24 +80,54 @@ int EXTI15_10_IRQHandler(void)
 		{
 			//蓝牙APP、PS2手柄、航模手柄控制平衡车
 			//控制量为Move_X和Move_Z，注意这里的控制量是没有单位的，只代表速度的大小，但是无法精确指定平衡车的前进、转向速度
-			if      (APP_ON_Flag)      Get_RC();         //Handle the APP remote commands //处理APP遥控命令
-			else if (Remote_ON_Flag)   Remote_Control(); //Handle model aircraft remote commands //处理航模遥控命令
-			else if (PS2_ON_Flag)      PS2_control();    //Handle PS2 controller commands //处理PS2手柄控制命令
+			//if      (APP_ON_Flag)      Get_RC();         //Handle the APP remote commands //处理APP遥控命令
+			//else if (Remote_ON_Flag)   Remote_Control(); //Handle model aircraft remote commands //处理航模遥控命令
+			//else if (PS2_ON_Flag)      PS2_control();    //Handle PS2 controller commands //处理PS2手柄控制命令
 
 			//平衡环
-			MOTOR_A.Control_Rpm  = Balance(Pitch, gyro[0]);   
-			MOTOR_B.Control_Rpm  = Balance(Pitch, gyro[0]);  
+			//MOTOR_A.Control_Rpm  = Balance(Pitch, gyro[0]);   
+			//MOTOR_B.Control_Rpm  = Balance(Pitch, gyro[0]);  
 	
 			//速度环
-			MOTOR_A.Control_Rpm  = MOTOR_A.Control_Rpm + Balance_V(MOTOR_A.Encoder_Rpm, MOTOR_B.Encoder_Rpm)-Move_X*10-Move_Z*5; 
-			MOTOR_B.Control_Rpm  = MOTOR_B.Control_Rpm + Balance_V(MOTOR_A.Encoder_Rpm, MOTOR_B.Encoder_Rpm)-Move_X*10+Move_Z*5; 
-	
+			//MOTOR_A.Control_Rpm  = MOTOR_A.Control_Rpm + Balance_V(MOTOR_A.Encoder_Rpm, MOTOR_B.Encoder_Rpm)-Move_X*10-Move_Z*5; 
+			//MOTOR_B.Control_Rpm  = MOTOR_B.Control_Rpm + Balance_V(MOTOR_A.Encoder_Rpm, MOTOR_B.Encoder_Rpm)-Move_X*10+Move_Z*5; 
+			
+			
+			// moving speed of car(unit m/s), this speed is recieved from uart3, debugonly
+			//小车整体径向方向的速度 m/s ,该速度是串口3从ros接收到的,该代码仅用于调试
+			// 是毫米还是米？？？ debug_flag
+			float CAR_target_x = 0.1 * 1000;
+			// rotation speed of car(unit rad/s), this speed is recieved from uart3, debugonly
+			//小车整体旋转速度 rad/s，该速度是串口3从ros接收到的,该代码仅用于调试
+			float CAR_target_z = 0.1;
+			
+			//根据两轮差速运动学公式，将小车整体速度，转换为左右两个电机的速度
+		  //Inverse kinematics //运动学逆解
+			MOTOR_A.Control_metre  = CAR_target_x - CAR_target_z * Wheel_spacing / 2.0f; 
+			MOTOR_B.Control_metre =  CAR_target_x + CAR_target_z * Wheel_spacing / 2.0f; 
+			
+			//convert mm/s to 0.1rpm debug_flag
+			//把目标速度转换为目标转速
+			Get_Target_Encoder_Form_Velocity();
+			
+			
+			//速度控制，通过控制径向速度和切向速度，达到前进和转弯或原地转弯
+			//MOTOR_A.Control_Rpm = 100;
+			//MOTOR_B.Control_Rpm = 0;
+			//Speed closed-loop control to calculate the PWM value of each motor, 
+		  //PWM represents the actual wheel speed					 
+		  //速度闭环控制计算各电机PWM值，PWM代表车轮实际转速
+		  MOTOR_A.Motor_Pwm=Incremental_PI_Move(MOTOR_A.Encoder_Rpm, MOTOR_A.Control_Rpm);
+		  MOTOR_B.Motor_Pwm=Incremental_PI_Move(MOTOR_B.Encoder_Rpm, MOTOR_B.Control_Rpm);
+				 
+			
+		
 			//速度限幅
-			MOTOR_A.Control_Rpm = Limit_data(MOTOR_A.Control_Rpm, rpm_max);
-			MOTOR_B.Control_Rpm = Limit_data(MOTOR_B.Control_Rpm, rpm_max);
+			MOTOR_A.Motor_Pwm = Limit_data(MOTOR_A.Motor_Pwm, rpm_max);
+			MOTOR_B.Motor_Pwm = Limit_data(MOTOR_B.Motor_Pwm, rpm_max);
 			
 			//控制电机
-			hub_CAN_Syn_Rpm(MOTOR_A.Control_Rpm, -MOTOR_B.Control_Rpm);
+			hub_CAN_Syn_Rpm(MOTOR_A.Motor_Pwm, -MOTOR_B.Motor_Pwm);
 		}
 		
 		//急停
@@ -121,14 +151,14 @@ int EXTI15_10_IRQHandler(void)
 		oled_show();
 		
 		//向APP发送数据
-		APP_Show();	 
+		//APP_Show();	 
 		
 		//通过串口3发送机器人状态数据
 		data_transition(); 
 		USART3_SEND();
 		
 		//读取PS2手柄控制命令
-		PS2_Read(); 	
+		//PS2_Read(); 	
 
 		//Click the user button to update the gyroscope zero
 		//单击用户按键更新陀螺仪零点
@@ -444,6 +474,19 @@ void Get_Velocity_Form_Encoder(void)
 	//编码器原始数据转换为车轮速度，单位m/s
 	MOTOR_A.Encoder_metre = MOTOR_A.Encoder_Rpm/60*Wheel_perimeter/10; //除以10是因为读取到的转速单位为0.1rpm
 	MOTOR_B.Encoder_metre = MOTOR_B.Encoder_Rpm/60*Wheel_perimeter/10;
+}
+/**************************************************************************
+Function: Read the target wheel speed( unit m/s) and calculate target encoder valu( unit 0.1rpm)
+Input   : none
+Output  : none
+函数功能：通过目标车轮速度（单位m/s）计算目标编码器rpm，单位是0.1rpm
+入口参数：无
+返回  值：无
+**************************************************************************/
+void Get_Target_Encoder_Form_Velocity(void)
+{
+	MOTOR_A.Control_Rpm = MOTOR_A.Control_metre/Wheel_perimeter*10*60; //乘以10是因为转速单位为0.1rpm
+	MOTOR_B.Control_Rpm = MOTOR_B.Control_metre/Wheel_perimeter*10*60;
 }
 /**************************************************************************
 Function: Smoothing the front wheel steering speed to prevent excessive steering gear current

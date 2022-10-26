@@ -29,6 +29,7 @@ float Incremental_PI_Move (float Encoder,float Target);
 float Incremental_PI_Turn (float Encoder,float Target);
 void Key(void);
 void Get_Velocity_Form_Encoder(void);
+void Get_Target_Encoder_Form_Velocity(void);
 void robot_mode_check(void);
 void Smooth_control(float vx, float step);
 int Smooth_steering(int currentPWM, int targetPWM, float step);
