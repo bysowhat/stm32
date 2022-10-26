@@ -95,25 +95,26 @@ int EXTI15_10_IRQHandler(void)
 			
 			// moving speed of car(unit m/s), this speed is recieved from uart3, debugonly
 			//小车整体径向方向的速度 m/s ,该速度是串口3从ros接收到的,该代码仅用于调试
-			// 是毫米还是米？？？ debug_flag
-			float CAR_target_x = 0.1 * 1000;
+			//3.6公里每小时，相当于人的步行速度的1/3
+			float CAR_target_x = 0.33;
 			// rotation speed of car(unit rad/s), this speed is recieved from uart3, debugonly
-			//小车整体旋转速度 rad/s，该速度是串口3从ros接收到的,该代码仅用于调试
-			float CAR_target_z = 0.1;
+			//小车整体旋转速度 0.rad/s，该速度是串口3从ros接收到的,该代码仅用于调试
+			// 5秒钟转90度
+			// if CAR_target_z>0, 从motor b转向motor a，即从右向左转
+			// if CAR_target_z>0, turn right to left
+			float CAR_target_z = 0.314;
 			
 			//根据两轮差速运动学公式，将小车整体速度，转换为左右两个电机的速度
 		  //Inverse kinematics //运动学逆解
-			MOTOR_A.Control_metre  = CAR_target_x - CAR_target_z * Wheel_spacing / 2.0f; 
-			MOTOR_B.Control_metre =  CAR_target_x + CAR_target_z * Wheel_spacing / 2.0f; 
+			MOTOR_A.Control_metre = CAR_target_x * 1000 - CAR_target_z * Wheel_spacing*1000 / 2.0f; 
+			MOTOR_B.Control_metre = CAR_target_x *1000 + CAR_target_z * Wheel_spacing*1000 / 2.0f; 
 			
-			//convert mm/s to 0.1rpm debug_flag
+			//convert mm/s to rps
 			//把目标速度转换为目标转速
 			Get_Target_Encoder_Form_Velocity();
 			
 			
 			//速度控制，通过控制径向速度和切向速度，达到前进和转弯或原地转弯
-			//MOTOR_A.Control_Rpm = 100;
-			//MOTOR_B.Control_Rpm = 0;
 			//Speed closed-loop control to calculate the PWM value of each motor, 
 		  //PWM represents the actual wheel speed					 
 		  //速度闭环控制计算各电机PWM值，PWM代表车轮实际转速
@@ -127,7 +128,12 @@ int EXTI15_10_IRQHandler(void)
 			MOTOR_B.Motor_Pwm = Limit_data(MOTOR_B.Motor_Pwm, rpm_max);
 			
 			//控制电机
-			hub_CAN_Syn_Rpm(MOTOR_A.Motor_Pwm, -MOTOR_B.Motor_Pwm);
+			//hub_CAN_Syn_Rpm 
+			//input0:motor a, left, the gps side round per minus
+			//input1:motor b, right, round per minus
+			hub_CAN_Syn_Rpm(MOTOR_A.Motor_Pwm/10, -MOTOR_B.Motor_Pwm/10);
+			//hub_CAN_Syn_Rpm(MOTOR_A.Control_Rpm/10, -MOTOR_B.Control_Rpm/10);
+			//hub_CAN_Syn_Rpm(60, 0);
 		}
 		
 		//急停
@@ -254,7 +260,7 @@ pwm+=Kp[e（k）-e(k-1)]+Ki*e(k)
 **************************************************************************/
 float Incremental_PI_Move (float Encoder,float Target)
 {
-	 float KP=10, KI=1;
+	 float KP=1, KI=0.1;
 	 static float Bias,Pwm,Last_bias;
 	 Bias=Target-Encoder; //Calculate the deviation //计算偏差
 	 Pwm+=KP*(Bias-Last_bias)+KI*Bias; 
@@ -479,14 +485,14 @@ void Get_Velocity_Form_Encoder(void)
 Function: Read the target wheel speed( unit m/s) and calculate target encoder valu( unit 0.1rpm)
 Input   : none
 Output  : none
-函数功能：通过目标车轮速度（单位m/s）计算目标编码器rpm，单位是0.1rpm
+函数功能：通过目标车轮速度（单位mm/s）计算目标编码器rpm，单位是0.1rpm
 入口参数：无
 返回  值：无
 **************************************************************************/
 void Get_Target_Encoder_Form_Velocity(void)
 {
-	MOTOR_A.Control_Rpm = MOTOR_A.Control_metre/Wheel_perimeter*10*60; //乘以10是因为转速单位为0.1rpm
-	MOTOR_B.Control_Rpm = MOTOR_B.Control_metre/Wheel_perimeter*10*60;
+	MOTOR_A.Control_Rpm = MOTOR_A.Control_metre/(Wheel_perimeter*1000)*10*60; //乘以10是因为转速单位为0.1rpm
+	MOTOR_B.Control_Rpm = MOTOR_B.Control_metre/(Wheel_perimeter*1000)*10*60;
 }
 /**************************************************************************
 Function: Smoothing the front wheel steering speed to prevent excessive steering gear current
